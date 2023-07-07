@@ -1,25 +1,25 @@
-export enum SEND_TYPE {
-  Reg = 'reg',
-  CreateRoom = 'create_room',
-  AddUserToRoom = 'add_user_to_room',
-  AddShips = 'add_ships',
-  Attack = 'attack',
-  RandomAttack = 'randomAttack',
-}
+export type RegPlayer = Pick<Player, 'name' | 'password'>;
 
 export interface Player {
-  playerId: number;
+  index: number;
   name: string;
   password: string;
   wins: number;
 }
 
-export interface Room {
-  roomId: number;
-  roomUsers: Player;
+export interface regRes {
+  name: string;
+  index: number;
+  error: boolean;
+  errorText: string;
 }
 
-export interface Game {
-  gameId: number;
-  playerId: number;
+export interface RoomRes {
+  roomId: number;
+  roomUsers: Omit<Player, 'playerId' | 'name'>;
+}
+
+export interface GameRes {
+  idGame: number;
+  idPlayer: number;
 }

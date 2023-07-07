@@ -1,6 +1,7 @@
 import { WebSocketServer } from 'ws';
 import { randomUUID } from 'node:crypto';
 import { regPlayer } from '../controllers/Players.js';
+import { createRoom, createGame } from '../controllers/Rooms_Games.js';
 
 const WSS_PORT = 3000;
 
@@ -29,7 +30,23 @@ wss.on('connection', (ws, req) => {
         });
         ws.send(allRegRes);
         break;
+      case 'create_room':
+        const activeGame = createGame(key);
+        const activeGameRes = JSON.stringify({
+          type: 'create_game',
+          data: JSON.stringify(activeGame),
+          id: 0,
+        });
+        ws.send(activeGameRes);
 
+        const activeRoom = createRoom(key);
+        const activeRoomRes = JSON.stringify({
+          type: 'update_room',
+          data: JSON.stringify(activeRoom),
+          id: 0,
+        });
+        ws.send(activeRoomRes);
+        break;
       default:
         break;
     }
