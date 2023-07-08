@@ -7,19 +7,15 @@ export interface Player {
   wins: number;
 }
 
-export interface regRes {
-  name: string;
-  index: number;
-  error: boolean;
-  errorText: string;
+export interface DataAddShips {
+  gameId: number;
+  ships: Ships[];
+  indexPlayer: number;
 }
 
-export interface RoomRes {
-  roomId: number;
-  roomUsers: Omit<Player, 'playerId' | 'name'>;
-}
-
-export interface GameRes {
-  idGame: number;
-  idPlayer: number;
+interface Ships {
+  position: { x: number; y: number };
+  direction: boolean;
+  type: string;
+  length: number;
 }
