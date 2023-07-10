@@ -1,9 +1,9 @@
 import { activeConnections } from './Players.js';
 import { DataAddShips } from '../constants.js';
+import { stateGames } from '../controllers/Games.js';
 
 export const rooms = new Map();
-const games = new Map();
-const stateGames = new Map();
+export const games = new Map();
 
 export const createRoom = (key: string): string => {
   let roomId = rooms.size > 0 ? Math.max(...rooms.keys()) + 1 : 1;
@@ -24,32 +24,34 @@ export const updateRooms = (): string =>
 export const createGame = (key: string): string => {
   let idGame = games.size > 0 ? Math.max(...games.keys()) + 1 : 1;
 
-  const { index, name, password, wins } = activeConnections.get(key);
-  games.set(idGame, { idGame, idPlayer: index });
+  const { index, _ } = activeConnections.get(key);
+  games.set(idGame, { idGame, idFirstPlayer: index });
   const activeGame = JSON.stringify({
     type: 'create_game',
-    data: JSON.stringify(games.get(idGame)),
+    data: JSON.stringify({ idGame, idPlayer: index }),
     id: 0,
   });
+  // console.log('game', games);
+
   return activeGame;
 };
 
 export const addUserToRoom = (key: string, roomId: number) => {
-  const { index, name, password, wins } = activeConnections.get(key);
-  const idFirstPlayer = rooms.get(roomId).roomUsers[0].index;
+  const { index, _ } = activeConnections.get(key);
+  const idCurrentPlayer = rooms.get(roomId).roomUsers[0].index;
   const idGame = [...games.values()].filter(
-    ({ idGame, idPlayer }) => idPlayer === idFirstPlayer
+    ({ _, idFirstPlayer }) => idFirstPlayer === idCurrentPlayer
   )[0].idGame;
 
-  games.set(idGame.toString(), { idGame, idPlayer: index });
+  games.set(idGame, { ...games.get(idGame), idSecondPlayer: index });
+  // console.log('game', games);
 
   rooms.delete(roomId);
   const GameForAdd = JSON.stringify({
     type: 'create_game',
-    data: JSON.stringify(games.get(idGame.toString())),
+    data: JSON.stringify({ idGame, idPlayer: index }),
     id: 0,
   });
-  // console.log('games', games);
   return GameForAdd;
 };
 
@@ -64,6 +66,10 @@ export const addShips = (key: string, dataAddShips: DataAddShips) => {
       ...stateGames.get(gameId),
       [key]: { ships, currentPlayerIndex: indexPlayer },
     });
-    return stateGames.get(gameId);
+    // console.log('stateGames', stateGames);
+    // console.log('rooms', rooms);
+    // console.log('game', games);
+
+    return gameId;
   }
 };

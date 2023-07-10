@@ -1,6 +1,6 @@
 import { RegPlayer } from '../constants.js';
 
-const players = new Map();
+export const players = new Map();
 
 export const activeConnections = new Map();
 
