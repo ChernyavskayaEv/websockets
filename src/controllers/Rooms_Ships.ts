@@ -1,14 +1,12 @@
-import { activeConnections } from './Players.js';
-import { DataAddShips } from '../constants.js';
-import { stateGames } from '../controllers/Games.js';
+import { clients } from '../ws_server/index.js';
 
 export const rooms = new Map();
 export const games = new Map();
 
 export const createRoom = (key: string): string => {
   let roomId = rooms.size > 0 ? Math.max(...rooms.keys()) + 1 : 1;
-  const { index, name, password, wins } = activeConnections.get(key);
-  rooms.set(roomId, { roomId, roomUsers: [{ name, index }] });
+  const { idPlayer, name } = clients.get(key);
+  rooms.set(roomId, { roomId, roomUsers: [{ name, index: idPlayer }] });
   // console.log('rooms', rooms);
 
   return updateRooms();
@@ -23,12 +21,12 @@ export const updateRooms = (): string =>
 
 export const createGame = (key: string): string => {
   let idGame = games.size > 0 ? Math.max(...games.keys()) + 1 : 1;
+  const { idPlayer } = clients.get(key);
 
-  const { index, _ } = activeConnections.get(key);
-  games.set(idGame, { idGame, idFirstPlayer: index });
+  games.set(idGame, { idGame, idFirstPlayer: idPlayer });
   const activeGame = JSON.stringify({
     type: 'create_game',
-    data: JSON.stringify({ idGame, idPlayer: index }),
+    data: JSON.stringify({ idGame, idPlayer: idPlayer }),
     id: 0,
   });
   // console.log('game', games);
@@ -37,39 +35,22 @@ export const createGame = (key: string): string => {
 };
 
 export const addUserToRoom = (key: string, roomId: number) => {
-  const { index, _ } = activeConnections.get(key);
+  const { idPlayer } = clients.get(key);
   const idCurrentPlayer = rooms.get(roomId).roomUsers[0].index;
   const idGame = [...games.values()].filter(
-    ({ _, idFirstPlayer }) => idFirstPlayer === idCurrentPlayer
+    ({ idFirstPlayer }) => idFirstPlayer === idCurrentPlayer
   )[0].idGame;
+  // console.log('idGame', idGame);
 
-  games.set(idGame, { ...games.get(idGame), idSecondPlayer: index });
+  games.set(idGame, { ...games.get(idGame), idSecondPlayer: idPlayer });
   // console.log('game', games);
 
   rooms.delete(roomId);
   const GameForAdd = JSON.stringify({
     type: 'create_game',
-    data: JSON.stringify({ idGame, idPlayer: index }),
+    data: JSON.stringify({ idGame, idPlayer }),
     id: 0,
   });
+
   return GameForAdd;
-};
-
-export const addShips = (key: string, dataAddShips: DataAddShips) => {
-  const { gameId, ships, indexPlayer } = dataAddShips;
-  if (!stateGames.has(gameId)) {
-    stateGames.set(gameId, {
-      [key]: { ships, currentPlayerIndex: indexPlayer },
-    });
-  } else {
-    stateGames.set(gameId, {
-      ...stateGames.get(gameId),
-      [key]: { ships, currentPlayerIndex: indexPlayer },
-    });
-    // console.log('stateGames', stateGames);
-    // console.log('rooms', rooms);
-    // console.log('game', games);
-
-    return gameId;
-  }
 };

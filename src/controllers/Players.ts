@@ -1,8 +1,7 @@
 import { RegPlayer } from '../constants.js';
+import { clients } from '../ws_server/index.js';
 
 export const players = new Map();
-
-export const activeConnections = new Map();
 
 export const regPlayer = (data: RegPlayer, key: string): string => {
   let index = players.size + 1;
@@ -11,26 +10,30 @@ export const regPlayer = (data: RegPlayer, key: string): string => {
   if (players.has(data.name)) {
     const oldPlayer = players.get(data.name);
     if (oldPlayer.password !== data.password) {
-      errorText = 'Invalid player password';
+      errorText = 'Invalid password';
     }
   } else {
     players.set(data.name, { index, ...data, wins });
   }
   const player = players.get(data.name);
-  activeConnections.set(key, { ...player });
-  // console.log('activeConnections', activeConnections);
+  clients.set(key, {
+    ws: clients.get(key),
+    idPlayer: player.index,
+    name: player.name,
+  });
   // console.log('players', players);
+  // console.log('clients', clients);
 
   const dataRegRes = errorText
     ? {
         name: player.name,
-        index: index,
+        index: player.index,
         error: true,
         errorText: errorText,
       }
     : {
         name: player.name,
-        index: index,
+        index: player.index,
         error: false,
         errorText: '',
       };
@@ -44,7 +47,7 @@ export const regPlayer = (data: RegPlayer, key: string): string => {
 };
 
 export const updateWinners = (): string => {
-  const winners = [...players.values()].map(({ i, name, p, wins }) => ({
+  const winners = [...players.values()].map(({ name, wins }) => ({
     name,
     wins,
   }));

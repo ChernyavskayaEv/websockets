@@ -1,3 +1,5 @@
+import { Game } from './controllers/GameModel.js';
+
 export type RegPlayer = Pick<Player, 'name' | 'password'>;
 
 export interface Player {
@@ -9,13 +11,32 @@ export interface Player {
 
 export interface DataAddShips {
   gameId: number;
-  ships: Ships[];
+  ships: ShipData[];
   indexPlayer: number;
 }
 
-interface Ships {
-  position: { x: number; y: number };
+export interface ShipData {
+  position: Point;
   direction: boolean;
   type: string;
   length: number;
+  killed?: boolean;
+}
+
+export type Point = {
+  x: number;
+  y: number;
+};
+
+export interface StateGame {
+  game: Game;
+  player: number;
+}
+
+export interface Attack extends Point, Omit<DataAddShips, 'ships'> {}
+
+export interface AttackRes {
+  position: Point;
+  currentPlayer: number;
+  status: string;
 }
