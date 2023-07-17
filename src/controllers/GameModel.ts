@@ -10,7 +10,7 @@ export class Ship {
   type?: string;
   killed?: boolean;
 
-  constructor({position, direction, length }: ShipData) {
+  constructor({ position, direction, length }: ShipData) {
     this.position = position;
     this.direction = direction;
     this.length = length;
@@ -22,8 +22,8 @@ export class Ship {
     const startLine = this.direction ? y : x;
     const line = getLine(this.length, startLine);
     const coordinates = this.direction
-      ? line.map(c => ({x: point, y: c }))
-      : line.map(c => ({y: point, x: c }))
+      ? line.map((c) => ({ x: point, y: c }))
+      : line.map((c) => ({ y: point, x: c }));
     return coordinates;
   }
 }
@@ -36,11 +36,21 @@ export class Game {
   );
 
   constructor(ships: ShipData[]) {
-    this.ships = ships.map( ship => new Ship(ship));
+    this.ships = ships.map((ship) => new Ship(ship));
   }
 
   checkAllShips(): boolean {
-    return this.ships.every( ship => ship.killed );
+    return this.ships.every((ship) => ship.killed);
+  }
+
+  getFreePoint(): Point[] {
+    let freePoint: { x: number; y: number }[] = [];
+    this.field.forEach((y, indexY) => {
+      y.forEach((x, indexX) => {
+        if (x === null) freePoint.push({ x: indexX, y: indexY });
+      });
+    });
+    return freePoint;
   }
 
   getShip({ x, y }: Point): Ship | undefined {
@@ -76,8 +86,8 @@ export class Game {
   }
 
   checkShip(ship: Ship): boolean {
-    return ship.coordinates.every( p => this.getFieldValue(p) === 'hit')
- }
+    return ship.coordinates.every((p) => this.getFieldValue(p) === 'hit');
+  }
 
   getAround(ship: Ship): Point[] {
     const { x, y } = ship.position;

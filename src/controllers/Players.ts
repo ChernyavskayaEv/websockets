@@ -21,8 +21,6 @@ export const regPlayer = (data: RegPlayer, key: string): string => {
     idPlayer: player.index,
     name: player.name,
   });
-  // console.log('players', players);
-  // console.log('clients', clients);
 
   const dataRegRes = errorText
     ? {

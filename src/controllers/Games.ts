@@ -25,8 +25,6 @@ export const addShips = (
       ...stateGames.get(gameId),
       [key]: { game, player: indexPlayer },
     });
-    // console.log('stateGames', stateGames);
-
     return gameId;
   }
 };
@@ -58,7 +56,6 @@ export const attack = ({ x, y, gameId, indexPlayer }: Attack) => {
         attackRes.nextPlayer = playerSetAttack;
         const result = game.handleAttack(shot);
         if (result) {
-          // console.log('killed', game.handleAttack(shot));
           const [killed, miss] = game.handleAttack(shot);
           killed.forEach((k: Point) => {
             attackRes.data.push({
@@ -73,6 +70,7 @@ export const attack = ({ x, y, gameId, indexPlayer }: Attack) => {
               currentPlayer: indexPlayer,
               status: 'miss',
             });
+            game.fillField(k);
           });
         } else {
           attackRes.data.push({
@@ -84,7 +82,6 @@ export const attack = ({ x, y, gameId, indexPlayer }: Attack) => {
       }
     }
   });
-
   return attackRes;
 };
 
@@ -99,4 +96,17 @@ export const checkAllShips = ({
 
   if (finishGame.length > 0) return indexPlayer;
   return;
+};
+
+export const randomAttack = ({ gameId, indexPlayer }: Attack): Point => {
+  const stateGame: StateGame = stateGames.get(gameId);
+  const { game } = Object.entries(stateGame).filter(
+    ([key, { game, player }]) => player !== indexPlayer
+  )[0][1];
+
+  const freePoint = game.getFreePoint();
+  const min = 0;
+  const max = freePoint.length - 1;
+  const randomIndexPoint = Math.floor(Math.random() * (max - min + 1)) + min;
+  return freePoint[randomIndexPoint];
 };

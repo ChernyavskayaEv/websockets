@@ -4,7 +4,6 @@ import { regPlayer, updateWinners, players } from '../controllers/Players.js';
 import {
   rooms,
   games,
-  updateRooms,
   createRoom,
   createGame,
   addUserToRoom,
@@ -13,9 +12,15 @@ import {
   stateGames,
   addShips,
   attack,
+  randomAttack,
   checkAllShips,
 } from '../controllers/Games.js';
-import { turn, turnAfterAttack, finishGame } from '../controllers/Commands.js';
+import {
+  updateRooms,
+  turn,
+  turnAfterAttack,
+  finishGame,
+} from '../controllers/Commands.js';
 import { StateGame } from '../constants.js';
 
 const WSS_PORT = 3000;
@@ -46,8 +51,18 @@ wss.on('connection', (ws, req) => {
         ws.send(createRoom(key));
         break;
       case 'add_user_to_room':
-        ws.send(addUserToRoom(key, JSON.parse(msg.data).indexRoom));
-        ws.send(updateRooms());
+        const addUserToRoomRes = addUserToRoom(
+          key,
+          JSON.parse(msg.data).indexRoom
+        );
+        if (!addUserToRoomRes) {
+          ws.send(updateRooms());
+          ws.send(updateWinners());
+        } else {
+          ws.send(addUserToRoomRes!);
+          ws.send(updateRooms());
+        }
+
         break;
       case 'add_ships':
         const gameId = addShips(key, JSON.parse(msg.data));
@@ -67,15 +82,28 @@ wss.on('connection', (ws, req) => {
           });
         }
         break;
+      case 'randomAttack':
       case 'attack':
-        const data = JSON.parse(msg.data);
+        let data = JSON.parse(msg.data);
 
+        if (msg.type === 'randomAttack') {
+          const { x, y } = randomAttack(data);
+          data = { ...data, x, y };
+        }
+
+        const activePlayer = games.get(data.gameId).activePlayer;
+        if (activePlayer !== data.indexPlayer) return;
+
+        const { data: dataAttack, nextPlayer } = attack(data);
+        const winPlayer = checkAllShips(data);
+        let finish = '';
+        if (winPlayer) {
+          finish = finishGame(winPlayer);
+        }
         Object.entries(stateGames.get(data.gameId)).forEach((player) => {
           const key = player[0];
-          const { data: dataAttack, nextPlayer } = attack(data);
-          // console.log('dataAttack', dataAttack);
 
-          if (!checkAllShips(data)) {
+          if (!winPlayer) {
             for (let attackRes of dataAttack) {
               const dataAttackRes = {
                 type: 'attack',
@@ -84,28 +112,28 @@ wss.on('connection', (ws, req) => {
               };
               clients.get(key).ws.send(JSON.stringify(dataAttackRes));
             }
-            clients.get(key).ws.send(turnAfterAttack(nextPlayer));
+            clients.get(key).ws.send(turnAfterAttack(data.gameId, nextPlayer));
           } else {
-            const finish = finishGame(nextPlayer);
-
             clients.get(key).ws.send(finish);
             clients.get(key).ws.send(updateRooms());
             clients.get(key).ws.send(updateWinners());
+            stateGames.delete(data.gameId);
+            games.delete(data.gameId);
           }
         });
-        // console.log(attack(JSON.parse(msg.data)));
-
         break;
       default:
+        const errorMsg = JSON.stringify({
+          type: 'error',
+          data: 'unknown command',
+          id: 0,
+        });
+        ws.send(errorMsg);
         break;
     }
   });
 
   ws.on('close', () => {
-    console.log('players', players);
-    console.log('rooms', rooms);
-    console.log('stateGames', stateGames);
-    console.log('games', games);
     const idClosedPlayer = clients.get(key).idPlayer;
 
     if (rooms) {
@@ -119,37 +147,51 @@ wss.on('connection', (ws, req) => {
     if (games.size > 0) {
       [...games.values()].forEach((game) => {
         if (Object.keys(game).length === 2) {
-          const { idGame, idFirstPlayer } = game;
-          if (idFirstPlayer === idClosedPlayer) {
-            games.delete(idGame);
+          if (game.idFirstPlayer !== idClosedPlayer) return;
+          games.delete(game.idGame);
 
-            if (stateGames.has(idGame)) {
-              stateGames.delete(idGame);
-            }
+          if (stateGames.has(game.idGame)) {
+            stateGames.delete(game.idGame);
           }
         } else {
+          if (
+            game.idFirstPlayer !== idClosedPlayer &&
+            game.idSecondPlayer !== idClosedPlayer
+          )
+            return;
           const { idGame, idFirstPlayer, idSecondPlayer } = game;
-          Object.entries(stateGames.get(idGame)).forEach((connection) => {
-            if (connection[0] !== key) {
-              const keyWinPlayer = connection[0];
-              idFirstPlayer === idClosedPlayer
-                ? clients.get(keyWinPlayer).ws.send(finishGame(idSecondPlayer))
-                : clients.get(keyWinPlayer).ws.send(finishGame(idFirstPlayer));
-              clients.get(keyWinPlayer).ws.send(updateRooms());
-              clients.get(keyWinPlayer).ws.send(updateWinners());
-            }
-          });
-          stateGames.delete(idGame);
+          let idRemainingPlayer = 0;
+          idFirstPlayer !== idClosedPlayer
+            ? (idRemainingPlayer = idFirstPlayer)
+            : (idRemainingPlayer = idSecondPlayer);
+          if (stateGames.has(game.idGame)) {
+            Object.entries(stateGames.get(idGame)).forEach((connection) => {
+              if (connection[0] !== key) {
+                const keyWinPlayer = connection[0];
+                clients.get(keyWinPlayer).ws.send(updateRooms());
+
+                idFirstPlayer === idClosedPlayer
+                  ? clients
+                      .get(keyWinPlayer)
+                      .ws.send(finishGame(idSecondPlayer))
+                  : clients
+                      .get(keyWinPlayer)
+                      .ws.send(finishGame(idFirstPlayer));
+                clients.get(keyWinPlayer).ws.send(updateWinners());
+              }
+            });
+            stateGames.delete(idGame);
+          }
           games.delete(idGame);
+          const wsRemainingPlayer = [...clients.values()].filter(
+            ({ idPlayer }) => idPlayer === idRemainingPlayer
+          )[0].ws;
+          wsRemainingPlayer.send(updateRooms());
+          wsRemainingPlayer.send(finishGame(idRemainingPlayer));
+          wsRemainingPlayer.send(updateWinners());
         }
       });
     }
-
     clients.delete(key);
-
-    console.log('players', players);
-    console.log('rooms', rooms);
-    console.log('stateGames', stateGames);
-    console.log('games', games);
   });
 });
